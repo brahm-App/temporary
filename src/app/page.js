@@ -1,63 +1,128 @@
-// frontend/pages/index.js
 "use client";
 import { useEffect, useState } from 'react';
+import { Line } from 'react-chartjs-2';
+import { io } from 'socket.io-client';
+import {
+  Chart as ChartJS,
+  LineElement,
+  PointElement,
+  LinearScale,
+  CategoryScale,
+  Filler,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+
+ChartJS.register(LineElement, PointElement, LinearScale, CategoryScale, Filler, Tooltip, Legend);
 
 export default function Home() {
   const [vitals, setVitals] = useState({});
-  const [status, setStatus] = useState('connecting'); // 'connecting', 'connected', 'error'
+  const [status, setStatus] = useState('connecting');
   const [error, setError] = useState(null);
+  const initialLength = 500;
+
+  const [heartRateData, setHeartRateData] = useState({
+    labels: Array.from({ length: initialLength }, (_, i) => i),
+    values: Array(initialLength).fill(0),
+  });
 
   useEffect(() => {
-    const socket = new WebSocket('ws://localhost:8080');
+    const socket = io('http://localhost:8080'); // ✅ Adjust to match your backend
 
-    socket.onopen = () => {
+    socket.on('connect', () => {
       setStatus('connected');
       setError(null);
-    };
+    });
 
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        setVitals(data);
-      } catch (err) {
-        console.error('Error parsing data:', err);
-        setError('Invalid data received');
-      }
-    };
+    socket.on('vitals', (data) => {
+      setVitals(data);
 
-    socket.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      const heartRate = data?.data?.ecg?.heartRate || 0;
+
+      setHeartRateData((prev) => {
+        const newValues = [...prev.values.slice(1), heartRate];
+        return {
+          labels: Array.from({ length: newValues.length }, (_, i) => i),
+          values: newValues,
+        };
+      });
+    });
+
+    socket.on('disconnect', () => {
       setStatus('error');
-      setError('Connection error');
-    };
+      setError('Disconnected from server');
+    });
 
-    socket.onclose = () => {
+    socket.on('connect_error', () => {
       setStatus('error');
-      setError('Connection closed');
-    };
+      setError('Connection failed');
+    });
 
-    // Cleanup on unmount
     return () => {
-      socket.close();
+      socket.disconnect();
     };
   }, []);
+
+  const heartRateChartData = {
+    labels: heartRateData.labels,
+    datasets: [
+      {
+        label: 'Heart Rate',
+        data: heartRateData.values,
+        fill: false,
+        borderColor: 'rgba(255,99,132,1)',
+        borderWidth: 2,
+        tension: 0.4,
+        pointRadius: 0,
+      },
+    ],
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 0 },
+    scales: {
+      y: {
+        beginAtZero: true,
+        max: 200, // ✅ Suitable range for heart rate
+        ticks: {
+          stepSize: 20,
+          callback: (value) => value.toLocaleString(),
+        },
+        grid: { color: 'rgba(0,0,0,0.1)' },
+      },
+      x: {
+        type: 'linear',
+        min: 0,
+        max: initialLength,
+        ticks: {
+          stepSize: 50,
+          callback: (val) => val,
+        },
+        grid: { color: 'rgba(0,0,0,0.1)' },
+      },
+    },
+    plugins: {
+      legend: { display: true },
+    },
+  };
 
   return (
     <div className="p-8 font-mono">
       <h1 className="text-2xl font-bold mb-4">🫁 Ventilator Monitor Dashboard</h1>
-      
-      {/* Connection Status */}
-      <div className={`mb-4 p-2 rounded ${
-        status === 'connected' ? 'bg-green-100' : 'bg-red-100'
-      }`}>
-        Status: {status === 'connected' ? 'Connected' : error || 'Connecting...'}
+
+      {/* Vitals */}
+      <div className="bg-gray-100 p-6 rounded shadow mb-6">
+        <p><strong>Heart Rate:</strong> {vitals?.data?.ecg?.heartRate || '--'} bpm</p>
+        <p><strong>Respiratory Rate:</strong> {vitals?.data?.resp?.respirationRate || '--'} bpm</p>
+        <p><strong>Oxygen Saturation:</strong> {vitals?.data?.spo2?.spo2Value || '--'}%</p>
+        <p><strong>Airflow Pressure:</strong> {vitals?.airflow_pressure || '--'} cmH2O</p>
       </div>
 
-      {/* Vitals Display */}
-      <div className="bg-gray-100 p-6 rounded shadow">
-        <p><strong>Respiratory Rate:</strong> {vitals.respiratory_rate || '--'} bpm</p>
-        <p><strong>Oxygen Saturation:</strong> {vitals.oxygen_saturation || '--'}%</p>
-        <p><strong>Airflow Pressure:</strong> {vitals.airflow_pressure || '--'} cmH2O</p>
+      {/* Heart Rate Graph */}
+      <div className="bg-white p-4 rounded shadow" style={{ height: '400px' }}>
+        <Line data={heartRateChartData} options={chartOptions} />
       </div>
     </div>
   );
