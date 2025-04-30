@@ -19,6 +19,7 @@ export default function Home() {
   const [vitals, setVitals] = useState({});
   const [status, setStatus] = useState('connecting');
   const [error, setError] = useState(null);
+  const [bluetoothStatus, setBluetoothStatus] = useState('Disconnected');
   const initialLength = 500;
 
   const [heartRateData, setHeartRateData] = useState({
@@ -32,9 +33,11 @@ export default function Home() {
     socket.on('connect', () => {
       setStatus('connected');
       setError(null);
+      console.log('Connected to server');
     });
 
     socket.on('vitals', (data) => {
+      console.log('Received vitals data:', data);
       setVitals(data);
 
       const heartRate = data?.data?.ecg?.heartRate || 0;
@@ -46,6 +49,14 @@ export default function Home() {
           values: newValues,
         };
       });
+    });
+    
+    socket.on('bluetooth_status', (data) => {
+      if (data.connected) {
+        setBluetoothStatus('Connected');
+      } else {
+        setBluetoothStatus('Disconnected');
+      }
     });
 
     socket.on('disconnect', () => {
@@ -111,6 +122,14 @@ export default function Home() {
   return (
     <div className="p-8 font-mono">
       <h1 className="text-2xl font-bold mb-4">🫁 Ventilator Monitor Dashboard</h1>
+      <div className="bg-gray-100 p-6 rounded shadow mb-6">
+        {status === 'connected' && <p className="text-green-500">Connected to server</p>}
+        {status === 'error' && <p className="text-red-500">Error: {error}</p>}
+      </div>
+
+      <div className="bg-gray-100 p-6 rounded shadow mb-6">
+        <p><strong>Bluetooth Status:</strong> {bluetoothStatus}</p>
+      </div>
 
       {/* Vitals */}
       <div className="bg-gray-100 p-6 rounded shadow mb-6">
