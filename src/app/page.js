@@ -19,7 +19,6 @@ export default function Home() {
   const [vitals, setVitals] = useState({});
   const [status, setStatus] = useState('connecting');
   const [error, setError] = useState(null);
-  const [bluetoothStatus, setBluetoothStatus] = useState('Disconnected');
   const initialLength = 500;
 
   const [heartRateData, setHeartRateData] = useState({
@@ -28,7 +27,7 @@ export default function Home() {
   });
 
   useEffect(() => {
-    const socket = io('http://localhost:8080'); // ✅ Adjust to match your backend
+    const socket = io('http://localhost:5000'); // ✅ Adjust to match your backend
 
     socket.on('connect', () => {
       setStatus('connected');
@@ -40,7 +39,7 @@ export default function Home() {
       console.log('Received vitals data:', data);
       setVitals(data);
 
-      const heartRate = data?.data?.ecg?.heartRate || 0;
+      const heartRate = data?.vitals?.heartRate || 0;
 
       setHeartRateData((prev) => {
         const newValues = [...prev.values.slice(1), heartRate];
@@ -49,14 +48,6 @@ export default function Home() {
           values: newValues,
         };
       });
-    });
-    
-    socket.on('bluetooth_status', (data) => {
-      if (data.connected) {
-        setBluetoothStatus('Connected');
-      } else {
-        setBluetoothStatus('Disconnected');
-      }
     });
 
     socket.on('disconnect', () => {
@@ -96,7 +87,7 @@ export default function Home() {
     scales: {
       y: {
         beginAtZero: true,
-        max: 200, // ✅ Suitable range for heart rate
+        max: 200,
         ticks: {
           stepSize: 20,
           callback: (value) => value.toLocaleString(),
@@ -122,21 +113,18 @@ export default function Home() {
   return (
     <div className="p-8 font-mono">
       <h1 className="text-2xl font-bold mb-4">🫁 Ventilator Monitor Dashboard</h1>
+
       <div className="bg-gray-100 p-6 rounded shadow mb-6">
         {status === 'connected' && <p className="text-green-500">Connected to server</p>}
         {status === 'error' && <p className="text-red-500">Error: {error}</p>}
       </div>
 
-      <div className="bg-gray-100 p-6 rounded shadow mb-6">
-        <p><strong>Bluetooth Status:</strong> {bluetoothStatus}</p>
-      </div>
-
       {/* Vitals */}
       <div className="bg-gray-100 p-6 rounded shadow mb-6">
-        <p><strong>Heart Rate:</strong> {vitals?.data?.ecg?.heartRate || '--'} bpm</p>
-        <p><strong>Respiratory Rate:</strong> {vitals?.data?.resp?.respirationRate || '--'} bpm</p>
-        <p><strong>Oxygen Saturation:</strong> {vitals?.data?.spo2?.spo2Value || '--'}%</p>
-        <p><strong>Airflow Pressure:</strong> {vitals?.airflow_pressure || '--'} cmH2O</p>
+        <p><strong>Heart Rate:</strong> {vitals?.vitals?.heartRate || '--'} bpm</p>
+        <p><strong>Temperature:</strong> {vitals?.vitals?.temperature || '--'} °C</p>
+        <p><strong>Oxygen Saturation:</strong> {vitals?.vitals?.spo2Value || '--'}%</p>
+        <p><strong>Blood Pressure:</strong> {vitals?.vitals?.nibpSys || '--'}/{vitals?.vitals?.nibpDia || '--'} mmHg</p>
       </div>
 
       {/* Heart Rate Graph */}
