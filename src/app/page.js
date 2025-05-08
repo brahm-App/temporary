@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState } from 'react';
 import { Line } from 'react-chartjs-2';
 import { io } from 'socket.io-client';
@@ -27,7 +28,7 @@ export default function Home() {
   });
 
   useEffect(() => {
-    const socket = io('http://localhost:5000'); // ✅ Adjust to match your backend
+    const socket = io('http://localhost:5000'); // ✅ Adjust to your backend URL
 
     socket.on('connect', () => {
       setStatus('connected');
@@ -39,7 +40,7 @@ export default function Home() {
       console.log('Received vitals data:', data);
       setVitals(data);
 
-      const heartRate = data?.vitals?.heartRate || 0;
+      const heartRate = data?.vitals?.hr || 0;
 
       setHeartRateData((prev) => {
         const newValues = [...prev.values.slice(1), heartRate];
@@ -119,12 +120,17 @@ export default function Home() {
         {status === 'error' && <p className="text-red-500">Error: {error}</p>}
       </div>
 
-      {/* Vitals */}
-      <div className="bg-gray-100 p-6 rounded shadow mb-6">
-        <p><strong>Heart Rate:</strong> {vitals?.vitals?.heartRate || '--'} bpm</p>
-        <p><strong>Temperature:</strong> {vitals?.vitals?.temperature || '--'} °C</p>
-        <p><strong>Oxygen Saturation:</strong> {vitals?.vitals?.spo2Value || '--'}%</p>
-        <p><strong>Blood Pressure:</strong> {vitals?.vitals?.nibpSys || '--'}/{vitals?.vitals?.nibpDia || '--'} mmHg</p>
+      {/* Vitals Section */}
+      <div className="bg-gray-100 p-6 rounded shadow mb-6 space-y-2">
+        <p><strong>ECG:</strong> {vitals?.vitals?.ecg ?? '--'}</p>
+        <p><strong>Heart Rate:</strong> {vitals?.vitals?.hr ?? '--'} bpm</p>
+        <p><strong>Temperature 1:</strong> {vitals?.temperature?.temp1 ?? '--'} °C</p>
+        <p><strong>Temperature 2:</strong> {vitals?.temperature?.temp2 ?? '--'} °C</p>
+        <p><strong>Oxygen Saturation:</strong> {vitals?.spo2?.spo2Value ?? '--'}%</p>
+        <p><strong>Pulse Rate (SpO2):</strong> {vitals?.spo2?.pulseRate ?? '--'} bpm</p>
+        <p><strong>Blood Pressure:</strong> {vitals?.bloodPressure?.systolic ?? '--'}/{vitals?.bloodPressure?.diastolic ?? '--'} mmHg</p>
+        <p><strong>MAP:</strong> {vitals?.bloodPressure?.mean ?? '--'} mmHg</p>
+        <p><strong>Pulse Rate (BP):</strong> {vitals?.bloodPressure?.pulseRate ?? '--'} bpm</p>
       </div>
 
       {/* Heart Rate Graph */}
